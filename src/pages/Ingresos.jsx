@@ -1,57 +1,40 @@
+// src/pages/Ingresos.jsx
 import React, { useState } from "react";
 import { getCurrentUser } from "../services/authService";
-import { getIngresos, setIngresos, getStock, setStock } from "../services/dataService";
+import { getIngresos, setIngresos, getStock, setStock, addToStock } from "../services/dataService";
 import { useNavigate } from "react-router-dom";
+import AutoCompleteInput from "../components/AutoCompleteInput";
 
 export default function Ingresos() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const user = getCurrentUser() || { nombre: "Usuario" };
   const [filas, setFilas] = useState(getIngresos());
   const [mensaje, setMensaje] = useState("");
 
   const handleChange = (i, key, value) => {
     const nuevo = filas.map((f, idx) => idx === i ? { ...f, [key]: value } : f);
-    setFilas(nuevo);
-    setIngresos(nuevo);
+    setFilas(nuevo); setIngresos(nuevo);
   };
 
-  const handleAdd = () => {
-    setFilas([...filas, { producto: "", cantidad: "", kg: "" }]);
-  };
-
+  const handleAdd = () => setFilas([...filas, { producto: "", cantidad: "", kg: "" }]); // vacío
   const handleRemove = (i) => {
     const nuevo = filas.filter((_, idx) => idx !== i);
-    setFilas(nuevo);
-    setIngresos(nuevo);
+    setFilas(nuevo); setIngresos(nuevo);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!filas.length) {
-      setMensaje("Debe ingresar al menos un producto");
-      return;
-    }
-    let stock = getStock();
+    if (!filas.length) return msg("Debe ingresar al menos un producto");
     filas.forEach(item => {
       if (!item.producto) return;
-      const idx = stock.findIndex(s => s.producto === item.producto);
-      if (idx >= 0) {
-        stock[idx].kg = Number(stock[idx].kg) + Number(item.kg || 0);
-        stock[idx].unidades = Number(stock[idx].unidades) + Number(item.cantidad || 0);
-      } else {
-        stock.push({
-          producto: item.producto,
-          kg: Number(item.kg || 0),
-          unidades: Number(item.cantidad || 0)
-        });
-      }
+      addToStock(item.producto, Number(item.kg || 0), Number(item.cantidad || 0), user.nombre);
     });
-    setStock(stock);
-    setFilas([]);
-    setIngresos([]);
-    setMensaje("Ingresos guardados y stock actualizado. La tabla se limpió.");
-    setTimeout(() => setMensaje(""), 3000);
+    setStock(getStock());
+    setFilas([]); setIngresos([]);
+    msg("Ingresos guardados y stock actualizado. La tabla se limpió.");
   };
+
+  function msg(t){ setMensaje(t); setTimeout(()=> setMensaje(""), 3000); }
 
   return (
     <div className="app-container">
@@ -61,6 +44,7 @@ export default function Ingresos() {
         <button onClick={() => navigate("/stock")}>Ver stock</button>
         <button onClick={() => navigate("/historial")}>Historial</button>
       </nav>
+
       <div className="content">
         <h2>Registrar ingresos de productos</h2>
         <form onSubmit={handleSubmit}>
@@ -77,35 +61,22 @@ export default function Ingresos() {
               {filas.map((fila, i) => (
                 <tr key={i}>
                   <td>
-                    <input
-                      type="text"
+                    <AutoCompleteInput
                       value={fila.producto}
-                      onChange={e => handleChange(i, "producto", e.target.value)}
-                      required
+                      onChange={(v)=> handleChange(i, "producto", v)}
+                      placeholder="Buscar producto…"
                     />
                   </td>
                   <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={fila.cantidad}
-                      onChange={e => handleChange(i, "cantidad", e.target.value)}
-                      required
-                    />
+                    <input type="number" min="0" value={fila.cantidad}
+                      onChange={e => handleChange(i, "cantidad", e.target.value)} />
                   </td>
                   <td>
-                    <input
-                      type="number"
-                      min="0"
-                      value={fila.kg}
-                      onChange={e => handleChange(i, "kg", e.target.value)}
-                      required
-                    />
+                    <input type="number" min="0" value={fila.kg}
+                      onChange={e => handleChange(i, "kg", e.target.value)} />
                   </td>
                   <td>
-                    <button type="button" onClick={() => handleRemove(i)} style={{ background: "#bb2124" }}>
-                      X
-                    </button>
+                    <button type="button" onClick={() => handleRemove(i)} style={{ background: "#bb2124" }}>X</button>
                   </td>
                 </tr>
               ))}

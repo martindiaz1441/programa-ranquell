@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { getHistorial } from "../services/dataService";
+import { getHistorial, setHistorial as setHist, clearHistorial, removeJornadaByIndex } from "../services/dataService";
 import { exportarHistorialExcel, importarHistorialExcel } from "../utils/excelUtils";
 import { useNavigate } from "react-router-dom";
+import { isAdmin } from "../services/authService";
 
 export default function Historial() {
   const navigate = useNavigate();
-  const [historial, setHistorial] = useState(getHistorial());
+  const [historialState, setHistorialState] = useState(getHistorial());
   const [selected, setSelected] = useState(null);
   const [msg, setMsg] = useState("");
 
   const handleExport = () => {
-    exportarHistorialExcel(historial);
+    exportarHistorialExcel(historialState);
     setMsg("Historial exportado a Excel");
     setTimeout(() => setMsg(""), 2000);
   };
@@ -19,7 +20,9 @@ export default function Historial() {
     const file = e.target.files[0];
     if (file) {
       importarHistorialExcel(file, (data) => {
-        setHistorial([...historial, ...data]);
+        const nuevo = [...historialState, ...data];
+        setHist(nuevo); // persistencia
+        setHistorialState(nuevo);
         setMsg("Historial importado correctamente");
         setTimeout(() => setMsg(""), 2000);
       });
@@ -36,6 +39,22 @@ export default function Historial() {
           Importar Excel
           <input type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handleImport} />
         </label>
+        {isAdmin() && (
+          <button
+            style={{ background: "#bb2124" }}
+            onClick={() => {
+              if (confirm("¿Seguro que querés borrar TODO el historial? Esta acción no se puede deshacer.")) {
+                clearHistorial();
+                setHistorialState([]);
+                setMsg("Historial borrado por completo");
+                setTimeout(() => setMsg(""), 2000);
+                setSelected(null);
+              }
+            }}
+          >
+            Borrar TODO
+          </button>
+        )}
       </nav>
       <div className="content">
         <h2>Jornadas previas</h2>
@@ -44,23 +63,39 @@ export default function Historial() {
             <tr>
               <th>Fecha</th>
               <th>Usuario</th>
-              <th>Ver detalle</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {historial.map((j, i) => (
+            {historialState.map((j, i) => (
               <tr key={i}>
                 <td>{j.fecha}</td>
                 <td>{j.usuario}</td>
                 <td>
                   <button onClick={() => setSelected(i)}>Ver</button>
+                  {isAdmin() && (
+                    <button
+                      style={{ background: "#bb2124", marginLeft: 8 }}
+                      onClick={() => {
+                        if (confirm("¿Borrar esta jornada? No se puede deshacer.")) {
+                          const nuevo = removeJornadaByIndex(i);
+                          setHistorialState(nuevo);
+                          setMsg("Jornada eliminada");
+                          setTimeout(() => setMsg(""), 2000);
+                          if (selected === i) setSelected(null);
+                        }
+                      }}
+                    >
+                      Borrar
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {selected !== null && (
-          <DetalleJornada jornada={historial[selected]} onClose={() => setSelected(null)} />
+          <DetalleJornada jornada={historialState[selected]} onClose={() => setSelected(null)} />
         )}
         {msg && <div style={{ color: "green", marginTop: 12 }}>{msg}</div>}
       </div>
