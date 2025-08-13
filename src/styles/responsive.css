@@ -1,0 +1,86 @@
+/* src/styles/responsive.css */
+
+/* Base táctil y tipografía un toque más grande en móviles */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  background: #f6f7f8;
+  color: #111827;
+}
+
+.app-container { padding: 12px; }
+.header {
+  position: sticky; top: 0; z-index: 20;
+  background: #15703e; color: #fff; padding: 14px 16px; border-radius: 10px;
+  box-shadow: 0 4px 14px #0002; margin-bottom: 12px; font-weight: 700;
+}
+
+/* Menú y toolbars adaptables */
+.menu, .toolbar, .form-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.menu button, .toolbar button, .menu label, .toolbar label {
+  height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #d1d5db;
+  background: #fff; color: #111827; cursor: pointer;
+}
+.menu .btn-primary, .toolbar .btn-primary {
+  background: #15703e; color: #fff; border-color: #15703e;
+}
+.btn-danger { background: #bb2124; color: #fff; border-color: #bb2124; }
+
+/* Tarjetas */
+.card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 6px #0001;
+}
+.card-title { margin: 0 0 10px; }
+
+/* Formularios */
+.form-col label { display:block; font-size: 13px; color:#6b7280; margin-bottom: 6px; }
+input, select {
+  width: 100%; height: 44px; border: 1px solid #d1d5db; border-radius: 10px; padding: 0 10px;
+  font-size: 16px; outline: none;
+}
+input:focus, select:focus { border-color: #15703e; box-shadow: 0 0 0 3px #15703e22; }
+
+/* Tabla con scroll horizontal suave en pantallas chicas */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-excel { width: 100%; border-collapse: collapse; background: #fff; }
+.table-excel th, .table-excel td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; }
+.table-excel thead th { background: #f3f4f6; position: sticky; top: 0; z-index: 1; }
+.flash-ok { color:#15703e; font-weight:700; }
+
+/* Autocomplete */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 2px);
+  background: #fff; border: 1px solid #d1d5db; border-radius: 10px;
+  max-height: 270px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 30px #0002;
+}
+.autocomplete-item { padding: 12px; cursor: pointer; }
+.autocomplete-item:hover { background: #f3f4f6; }
+
+/* En móviles, ocultamos columnas menos críticas */
+@media (max-width: 520px) {
+  .app-container { padding: 10px; }
+
+  /* Stock: ocultar Categoría, Precio y Total para que entre sin horizontal-scroll */
+  .table-stock th:nth-child(3),
+  .table-stock td:nth-child(3),
+  .table-stock th:nth-child(6),
+  .table-stock td:nth-child(6),
+  .table-stock th:nth-child(7),
+  .table-stock td:nth-child(7) { display: none; }
+
+  /* Producción: ocultar Tara (se sigue calculando Kg Neto) */
+  .table-produccion th:nth-child(3),
+  .table-produccion td:nth-child(3) { display: none; }
+
+  /* Ingresos/Egresos: todo visible, pero con menos padding */
+  .table-excel th, .table-excel td { padding: 6px; }
+}
+
+/* Tacto y accesibilidad */
+button { touch-action: manipulation; }
+input[type="number"] { -moz-appearance: textfield; }
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }

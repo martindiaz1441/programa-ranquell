@@ -128,7 +128,7 @@ export default function Produccion() {
             <div className="form-col">
               <label>Kg a descontar</label>
               <input
-                type="number" min="0" step="0.01"
+                type="number" min="0" step="0.01" inputMode="decimal"
                 value={desposte.kg}
                 onChange={(e)=> setDesposte(d => ({ ...d, kg: e.target.value }))}
               />
@@ -137,7 +137,7 @@ export default function Produccion() {
             <div className="form-col">
               <label>Unidades (opcional)</label>
               <input
-                type="number" min="0" step="1"
+                type="number" min="0" step="1" inputMode="numeric"
                 value={desposte.unidades}
                 onChange={(e)=> setDesposte(d => ({ ...d, unidades: e.target.value }))}
               />
@@ -160,7 +160,7 @@ export default function Produccion() {
           </div>
 
           <div className="table-wrap">
-            <table className="table-excel">
+            <table className="table-excel table-produccion">
               <thead>
                 <tr>
                   <th style={{minWidth:220}}>Producto / Corte</th>
@@ -183,7 +183,7 @@ export default function Produccion() {
                     </td>
                     <td>
                       <input
-                        type="number" min="0" step="0.01"
+                        type="number" min="0" step="0.01" inputMode="decimal"
                         value={fila.kg}
                         onChange={(e) => handleChange(i, "kg", e.target.value)}
                         required
@@ -191,7 +191,7 @@ export default function Produccion() {
                     </td>
                     <td>
                       <input
-                        type="number" min="0" step="0.01"
+                        type="number" min="0" step="0.01" inputMode="decimal"
                         value={fila.tara}
                         onChange={(e) => handleChange(i, "tara", e.target.value)}
                         required
@@ -199,7 +199,7 @@ export default function Produccion() {
                     </td>
                     <td>
                       <input
-                        type="number" min="0" step="1"
+                        type="number" min="0" step="1" inputMode="numeric"
                         value={fila.unidades}
                         onChange={(e) => handleChange(i, "unidades", e.target.value)}
                       />

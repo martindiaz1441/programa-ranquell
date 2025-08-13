@@ -1,49 +1,57 @@
 // src/components/AutoCompleteInput.jsx
-import React, { useState } from "react";
-import productos from "../data/productos";
+import React, { useEffect, useRef, useState } from "react";
+import productosBase from "../data/productos";
 
-export default function AutoCompleteInput({ value, onChange, placeholder }) {
+export default function AutoCompleteInput({
+  value,
+  onChange,
+  placeholder,
+  suggestions,   // opcional: lista de strings para sugerir
+  inputRef       // opcional: ref del input (para focus externo)
+}) {
   const [filtro, setFiltro] = useState("");
+  const [open, setOpen] = useState(false);
+  const localRef = useRef(null);
+  const ref = inputRef || localRef;
 
-  const opciones = productos.filter(p =>
-    p.toLowerCase().includes(filtro.toLowerCase())
-  );
+  const opcionesFuente = Array.isArray(suggestions) && suggestions.length > 0
+    ? suggestions
+    : Array.isArray(productosBase) ? productosBase : [];
+
+  const opciones = (opcionesFuente || []).filter(p =>
+    String(p || "").toLowerCase().includes(String(filtro || "").toLowerCase())
+  ).slice(0, 50);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => {
+      if (!ref.current) return;
+      if (!ref.current.parentElement?.contains(e.target)) setOpen(false);
+    };
+    window.addEventListener("click", onClick, { passive: true });
+    return () => window.removeEventListener("click", onClick);
+  }, [open]);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="autocomplete-wrap">
       <input
+        ref={ref}
         type="text"
         value={value}
-        onChange={(e) => {
-          setFiltro(e.target.value);
-          onChange(e.target.value);
-        }}
+        onChange={(e) => { setFiltro(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
         placeholder={placeholder}
-        style={{ width: "100%" }}
+        autoComplete="off"
+        inputMode="search"
       />
-      {filtro && opciones.length > 0 && (
-        <ul
-          style={{
-            position: "absolute",
-            zIndex: 10,
-            background: "#fff",
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            width: "100%",
-            border: "1px solid #ccc",
-            maxHeight: "150px",
-            overflowY: "auto"
-          }}
-        >
+      {open && filtro && opciones.length > 0 && (
+        <ul className="autocomplete-list">
           {opciones.map((op, i) => (
             <li
-              key={i}
-              style={{ padding: "6px", cursor: "pointer" }}
-              onClick={() => {
-                onChange(op);
-                setFiltro("");
-              }}
+              key={op + i}
+              className="autocomplete-item"
+              onMouseDown={(e)=> e.preventDefault()}
+              onClick={() => { onChange(op); setFiltro(""); setOpen(false); }}
             >
               {op}
             </li>

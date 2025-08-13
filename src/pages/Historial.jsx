@@ -54,7 +54,7 @@ export default function Historial() {
 
       <div className="content">
         <h2>Movimientos recientes</h2>
-        <table className="table-excel">
+        <table className="table-excel table-historial">
           <thead>
             <tr>
               <th>Fecha</th>
