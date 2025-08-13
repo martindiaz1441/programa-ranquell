@@ -1,39 +1,39 @@
 // src/services/firebase.js
-import { initializeApp } from "firebase/app";
-import { getFirestore, serverTimestamp } from "firebase/firestore";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
 import {
   getAuth,
-  onAuthStateChanged,
   signInAnonymously,
+  setPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
 
+// >>> CONFIG DE TU PROYECTO (copiada de Firebase Console)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyA8GpDbvKEjGryvZSNaxVylJ1WhUKmD1D0",
+  authDomain: "ranquel-93bc3.firebaseapp.com",
+  projectId: "ranquel-93bc3",
+  // Nota: el bucket estándar es *.appspot.com. Si en tu consola figura appspot.com, dejalo así:
+  storageBucket: "ranquel-93bc3.appspot.com",
+  // Si preferís, podés dejar el que pegaste:
+  // storageBucket: "ranquel-93bc3.firebasestorage.app",
+  messagingSenderId: "1052616371749",
+  appId: "1:1052616371749:web:41670a46dbf76311cf59cc",
+  // measurementId es opcional para Analytics; no lo usamos en esta app
+  // measurementId: "G-CR1RNKHBX3"
 };
 
-const app = initializeApp(firebaseConfig);
+// Inicialización única
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Servicios
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-export const ts = serverTimestamp;
 
-// Garantizamos al menos auth anónima para que funcione en producción
+// Autenticación anónima para poder usar Firestore
 export async function ensureAuth() {
-  if (!auth.currentUser) {
-    try {
-      await signInAnonymously(auth);
-    } catch (e) {
-      console.error("Error en auth anónima:", e);
-    }
-  }
-  return new Promise((resolve) => {
-    const off = onAuthStateChanged(auth, (u) => {
-      off();
-      resolve(u || null);
-    });
-  });
+  try { await setPersistence(auth, browserLocalPersistence); } catch {}
+  if (auth.currentUser) return auth.currentUser;
+  const { user } = await signInAnonymously(auth);
+  return user;
 }
