@@ -1,133 +1,252 @@
-// src/pages/Egresos.jsx
-import React, { useState } from "react";
-import { getCurrentUser } from "../services/authService";
-import { getEgresos, setEgresos, getStock, setStock, removeFromStock } from "../services/dataService";
+// src/pages/Ingresos.jsx
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { importarEgresosExcel } from "../utils/excelUtils";
+import { getCurrentUser, isAdmin } from "../services/authService";
+import { subscribeDraft, updateDraft, clearDraft, commitIngresos } from "../services/dataService";
+import { getNombresCatalogo, addProductoCatalogo } from "../services/productService";
+import { importarIngresosExcel } from "../utils/excelUtils";
 import AutoCompleteInput from "../components/AutoCompleteInput";
 
-export default function Egresos() {
+export default function Ingresos() {
   const navigate = useNavigate();
-  const user = getCurrentUser() || { nombre: "Usuario" };
-  const [filas, setFilas] = useState(getEgresos());
-  const [mensaje, setMensaje] = useState("");
+  const user = (typeof getCurrentUser === "function" && getCurrentUser()) || { nombre: "Usuario" };
+  const userNombre = user?.nombre || user?.email || "Usuario";
+
+  const [filas, setFilas] = useState([{ producto: "", cantidad: "", kg: "" }]);
+  const [msg, setMsg] = useState("");
   const [resumen, setResumen] = useState(null);
+  const [catalogo, setCatalogo] = useState(getNombresCatalogo());
+  const lastInputRef = useRef(null);
 
-  const handleChange = (i, key, value) => {
-    const nuevo = filas.map((f, idx) => idx === i ? { ...f, [key]: value } : f);
-    setFilas(nuevo); setEgresos(nuevo);
+  useEffect(() => setCatalogo(getNombresCatalogo()), []);
+  useEffect(() => {
+    const off = subscribeDraft("ingresos", (rows) => {
+      if (Array.isArray(rows) && rows.length) setFilas(rows);
+      else setFilas([{ producto: "", cantidad: "", kg: "" }]);
+    });
+    return () => { if (typeof off === "function") off(); };
+  }, []);
+
+  const flash = (t, ms = 1800) => { setMsg(t); setTimeout(() => setMsg(""), ms); };
+
+  const handleAdd = (focus = true) => {
+    const nuevo = [...filas, { producto: "", cantidad: "", kg: "" }];
+    setFilas(nuevo); updateDraft("ingresos", nuevo);
+    if (focus) setTimeout(()=> lastInputRef.current?.focus(), 0);
   };
-
-  const handleAdd = () => setFilas([...filas, { producto: "", cantidad: "", kg: "" }]); // vacío
+  const handleAdd5 = () => {
+    const bloque = Array.from({length:5}, ()=>({producto:"", cantidad:"", kg:""}));
+    const nuevo = [...filas, ...bloque];
+    setFilas(nuevo); updateDraft("ingresos", nuevo);
+  };
   const handleRemove = (i) => {
     const nuevo = filas.filter((_, idx) => idx !== i);
-    setFilas(nuevo); setEgresos(nuevo);
+    setFilas(nuevo); updateDraft("ingresos", nuevo);
+  };
+  const handleChange = (i, key, val) => {
+    const nuevo = filas.map((r, idx) => idx === i ? { ...r, [key]: val } : r);
+    setFilas(nuevo); updateDraft("ingresos", nuevo);
   };
 
-  const handleSubmit = (e) => {
+  const normalizarNombre = (s) => (s || "").trim();
+
+  const agregarAlCatalogoSiFalta = (nombre, tipoguess="kg") => {
+    const n = normalizarNombre(nombre);
+    if (!n) return;
+    if (!catalogo.find(x => x.toLowerCase() === n.toLowerCase())) {
+      addProductoCatalogo(n, { tipo: tipoguess, categoria:"General" });
+      setCatalogo(getNombresCatalogo());
+    }
+  };
+
+  const onKeyDownFila = (e, i, campo) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (i === filas.length - 1 && campo === "kg") handleAdd();
+    }
+  };
+
+  const guardarIngresos = async (e) => {
     e.preventDefault();
-    if (!filas.length) return msg("Debe ingresar al menos un producto");
-    const res = [];
-    filas.forEach(item => {
-      if (!item.producto) return;
-      removeFromStock(item.producto, Number(item.kg || 0), Number(item.cantidad || 0), user.nombre);
-      res.push({ ...item });
+    if (!filas.length) return flash("No hay filas para guardar");
+
+    const movimientos = [];
+    const errores = [];
+    filas.forEach((f, i) => {
+      const nombre = normalizarNombre(f.producto);
+      const kg = Number(f.kg || 0);
+      const unidades = Number(f.cantidad || 0);
+      if (!nombre || (kg <= 0 && unidades <= 0)) {
+        errores.push(`Fila ${i+1}: datos incompletos`);
+      } else {
+        movimientos.push({
+          nombre,
+          categoria: "General",
+          tipo: unidades > 0 ? "unidad" : "kg",
+          kg, unidades
+        });
+        const tipoguess = kg > 0 ? "kg" : "unidad";
+        agregarAlCatalogoSiFalta(nombre, tipoguess);
+      }
     });
-    setStock(getStock());
-    setFilas([]); setEgresos([]);
-    setResumen({ origen: "Formulario", filas: res });
-    msg("Egresos guardados y stock actualizado. La tabla se limpió.");
+
+    if (!movimientos.length) {
+      setResumen({ ok: 0, err: errores.length, errores });
+      return flash("No se guardaron ingresos por errores");
+    }
+
+    try {
+      await commitIngresos(movimientos, userNombre);
+      await clearDraft("ingresos");
+      setFilas([{ producto: "", cantidad: "", kg: "" }]);
+      setResumen({ ok: movimientos.length, err: errores.length, errores });
+      flash(`Ingresos guardados: ${movimientos.length} ok${errores.length ? `, ${errores.length} con error` : ""}`);
+    } catch (err) {
+      console.error(err);
+      flash("Error al guardar ingresos.");
+    }
   };
 
-  const onImportExcel = (file) => {
-    importarEgresosExcel(file, (rows) => {
-      const res = [];
-      rows.forEach(r => {
-        if (!r.producto) return;
-        removeFromStock(r.producto, Number(r.kg || 0), Number(r.cantidad || 0), user.nombre);
-        res.push(r);
+  const onImportExcel = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    importarIngresosExcel(file, async (rows, erroresImport) => {
+      const errores = [...(erroresImport || [])];
+      const movimientos = [];
+      (rows || []).forEach((r, i) => {
+        const nombre = normalizarNombre(r.producto);
+        const kg = Number(r.kg || 0);
+        const unidades = Number(r.cantidad || 0);
+        if (!nombre || (kg <= 0 && unidades <= 0)) {
+          errores.push(`Fila importada ${i+1}: datos incompletos`);
+        } else {
+          movimientos.push({ nombre, categoria:"General", tipo: unidades>0 ? "unidad" : "kg", kg, unidades });
+          const tipoguess = kg > 0 ? "kg" : "unidad";
+          agregarAlCatalogoSiFalta(nombre, tipoguess);
+        }
       });
-      setStock(getStock());
-      setResumen({ origen: "Excel", filas: res });
-      msg(`Se procesaron ${res.length} egresos desde Excel.`);
+
+      if (!movimientos.length) {
+        setResumen({ ok: 0, err: errores.length, errores });
+        flash("No se guardaron ingresos por errores");
+        e.target.value = "";
+        return;
+      }
+
+      try {
+        await commitIngresos(movimientos, userNombre);
+        await clearDraft("ingresos");
+        setFilas([{ producto: "", cantidad: "", kg: "" }]);
+        setResumen({ ok: movimientos.length, err: errores.length, errores });
+        flash(`Importados: ${movimientos.length} ok${errores.length ? `, ${errores.length} con error` : ""}`);
+      } catch (err) {
+        console.error(err);
+        flash("Error importando ingresos");
+      }
+      e.target.value = "";
     });
   };
 
-  function msg(t){ setMensaje(t); setTimeout(()=> setMensaje(""), 4000); }
+  const totalKg = filas.reduce((a, f) => a + Number(f.kg || 0), 0);
+  const totalU  = filas.reduce((a, f) => a + Number(f.cantidad || 0), 0);
 
   return (
     <div className="app-container">
-      <header className="header">Egresos</header>
+      <header className="header">Ingresos</header>
+
       <nav className="menu">
         <button onClick={() => navigate("/")}>Menú principal</button>
         <button onClick={() => navigate("/stock")}>Ver stock</button>
         <button onClick={() => navigate("/historial")}>Historial</button>
-        <label style={{ background: "#15703e", color: "#fff", padding: "10px 16px", borderRadius: 5, cursor: "pointer" }}>
+        <label style={{ background:"#0ea5e9", color:"#fff", borderRadius:8, padding:"10px 14px", cursor:"pointer" }}>
           Importar Excel
-          <input type="file" accept=".xlsx,.xls" style={{ display: "none" }}
-                 onChange={(e)=> e.target.files?.[0] && onImportExcel(e.target.files[0])} />
+          <input type="file" accept=".xlsx,.xls" onChange={onImportExcel} style={{ display:"none" }} />
         </label>
+        {isAdmin() && <button onClick={()=> navigate("/productos")}>Administrar productos</button>}
       </nav>
 
       <div className="content">
-        <h2>Registrar egresos de productos</h2>
-        <form onSubmit={handleSubmit}>
-          <table className="table-excel">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Kg</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((fila, i) => (
-                <tr key={i}>
-                  <td>
-                    <AutoCompleteInput
-                      value={fila.producto}
-                      onChange={(v)=> handleChange(i, "producto", v)}
-                      placeholder="Buscar producto…"
-                    />
-                  </td>
-                  <td>
-                    <input type="number" min="0" value={fila.cantidad}
-                      onChange={e => handleChange(i, "cantidad", e.target.value)} />
-                  </td>
-                  <td>
-                    <input type="number" min="0" value={fila.kg}
-                      onChange={e => handleChange(i, "kg", e.target.value)} />
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => handleRemove(i)} style={{ background: "#bb2124" }}>X</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: 16 }}>
-            <button type="button" onClick={handleAdd}>Agregar producto</button>
-            <button type="submit" style={{ marginLeft: 12 }}>Guardar egresos</button>
-            {mensaje && <span style={{ color: "green", marginLeft: 24 }}>{mensaje}</span>}
-          </div>
-        </form>
+        <div className="card">
+          <h3 className="card-title">Carga de ingresos</h3>
 
-        {resumen && (
-          <div style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
-            <h3 style={{ marginTop: 0 }}>Resumen ({resumen.origen})</h3>
+          <div className="toolbar">
+            <button type="button" onClick={handleAdd}>Agregar fila</button>
+            <button type="button" onClick={handleAdd5}>+5 filas</button>
+            <button type="button" className="btn-primary" onClick={guardarIngresos}>Guardar ingresos</button>
+            <span style={{ marginLeft: "auto", color: "#64748b", fontWeight: 700 }}>
+              Total: {totalKg.toFixed(2)} kg • {totalU} u.
+            </span>
+            {msg && <span className="flash-ok" style={{ marginLeft: 8 }}>{msg}</span>}
+          </div>
+
+          <div className="table-wrap">
             <table className="table-excel">
-              <thead><tr><th>Producto</th><th>Cantidad</th><th>Kg</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={{minWidth:260}}>Producto</th>
+                  <th style={{width:140}}>Cantidad</th>
+                  <th style={{width:140}}>Kg</th>
+                  <th style={{width:120}}>Acciones</th>
+                </tr>
+              </thead>
               <tbody>
-                {resumen.filas.map((r, idx)=>(
-                  <tr key={idx}>
-                    <td>{r.producto}</td>
-                    <td>{r.cantidad || 0}</td>
-                    <td>{r.kg || 0}</td>
+                {filas.map((f, i) => (
+                  <tr key={i}>
+                    <td>
+                      <AutoCompleteInput
+                        value={f.producto}
+                        onChange={(v)=> handleChange(i, "producto", v)}
+                        placeholder="Ej: Suprema"
+                        inputRef={i === filas.length - 1 ? lastInputRef : null}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number" min="0" step="1"
+                        value={f.cantidad}
+                        onChange={(e)=> handleChange(i, "cantidad", e.target.value)}
+                        onKeyDown={(e)=> onKeyDownFila(e, i, "cantidad")}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={f.kg}
+                        onChange={(e)=> handleChange(i, "kg", e.target.value)}
+                        onKeyDown={(e)=> onKeyDownFila(e, i, "kg")}
+                      />
+                    </td>
+                    <td>
+                      <button type="button" className="btn-danger" onClick={()=> handleRemove(i)}>Quitar</button>
+                    </td>
                   </tr>
                 ))}
+                {filas.length === 0 && (
+                  <tr><td colSpan={4} style={{textAlign:"center", color:"#6b7280"}}>Sin filas</td></tr>
+                )}
               </tbody>
+              <tfoot>
+                <tr>
+                  <th>Total</th>
+                  <th>{totalU}</th>
+                  <th>{totalKg.toFixed(2)}</th>
+                  <th></th>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+        </div>
+
+        {resumen && (
+          <div className="card">
+            <h3 className="card-title">Resumen</h3>
+            <p><b>OK:</b> {resumen.ok} &nbsp; | &nbsp; <b>Errores:</b> {resumen.err}</p>
+            {resumen.errores?.length > 0 && (
+              <ul className="bullets">
+                {resumen.errores.map((e, idx) => <li key={idx}>{e}</li>)}
+              </ul>
+            )}
           </div>
         )}
       </div>

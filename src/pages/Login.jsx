@@ -1,29 +1,47 @@
 // src/pages/Login.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, Card, CardContent, TextField, Button, Typography,
-  IconButton, InputAdornment, Alert, FormControlLabel, Checkbox
+  IconButton, InputAdornment, Alert, FormControlLabel, Checkbox, Divider
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import logo from "../assets/logo.png";
-import { loginEmailPassword } from "../services/authService";
+import { login, loginEmailPassword, getCurrentUser } from "../services/authService";
 
 export default function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState("");
+  const [usuario, setUsuario] = useState(""); // Email o Usuario
   const [pass, setPass] = useState("");
   const [show, setShow] = useState(false);
   const [rec, setRec] = useState(true);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  // Si ya hay sesión, mandamos al Home
+  useEffect(() => {
+    const u = getCurrentUser();
+    if (u) nav("/");
+  }, [nav]);
+
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
     setLoading(true);
     try {
-      await loginEmailPassword(email, pass, { remember: rec });
+      const isEmail = (usuario || "").includes("@");
+      let ok = false;
+
+      if (isEmail) {
+        // Login por email (queda admin si es martincbsn@gmail.com)
+        ok = await loginEmailPassword(usuario, pass, { remember: rec });
+        if (!ok) throw mkError("auth/invalid-credential");
+      } else {
+        // Login local por usuario
+        ok = login(usuario, pass);
+        if (!ok) throw mkError("auth/invalid-credential");
+      }
+
       nav("/"); // listo -> home
     } catch (error) {
       const msg = parseError(error);
@@ -38,7 +56,7 @@ export default function Login() {
       minHeight: "100svh",
       display: "grid",
       placeItems: "center",
-      padding: 2
+      p: 2
     }}>
       <Card elevation={8} sx={{ width: "100%", maxWidth: 420, borderRadius: 3 }}>
         <CardContent sx={{ p: 4 }}>
@@ -48,25 +66,26 @@ export default function Login() {
               Frigorífico Ranquel
             </Typography>
           </Box>
+
           <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
             Iniciar sesión
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Accedé con tu usuario para continuar.
+            Accedé con <b>email o usuario</b>.
           </Typography>
 
           {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
 
           <form onSubmit={onSubmit}>
             <TextField
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e)=> setEmail(e.target.value)}
+              label="Email o Usuario"
+              value={usuario}
+              onChange={(e)=> setUsuario(e.target.value)}
               fullWidth
               required
               autoFocus
-              autoComplete="email"
+              autoComplete="username"
+              placeholder="martincbsn@gmail.com  ó  Martin"
               sx={{ mb: 2 }}
             />
             <TextField
@@ -117,6 +136,14 @@ export default function Login() {
               </Button>
             </Box>
           </form>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="body2" color="text.secondary">
+            <b>Usuarios locales (demo):</b> Martin (admin), Orlando, Gastón, Matías, Miguel. Contraseña: <b>1234</b>.
+            <br />
+            <b>Admin por email:</b> usá <code>martincbsn@gmail.com</code>.
+          </Typography>
         </CardContent>
       </Card>
     </Box>
@@ -125,8 +152,14 @@ export default function Login() {
 
 function parseError(err) {
   const code = err?.code || "";
-  if (code.includes("auth/invalid-credential")) return "Email o contraseña incorrectos.";
+  if (code.includes("auth/invalid-credential")) return "Email/usuario o contraseña incorrectos.";
   if (code.includes("auth/invalid-email")) return "Email inválido.";
   if (code.includes("auth/too-many-requests")) return "Demasiados intentos. Probá más tarde.";
   return "No se pudo iniciar sesión. Revisá tus datos.";
+}
+
+function mkError(code) {
+  const e = new Error(code);
+  e.code = code;
+  return e;
 }

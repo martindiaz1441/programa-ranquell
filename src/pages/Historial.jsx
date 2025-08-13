@@ -1,31 +1,45 @@
-import React, { useState } from "react";
-import { getHistorial, setHistorial as setHist, clearHistorial, removeJornadaByIndex } from "../services/dataService";
-import { exportarHistorialExcel, importarHistorialExcel } from "../utils/excelUtils";
+// src/pages/Historial.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { subscribeHistorial } from "../services/dataService";
 import { isAdmin } from "../services/authService";
+import { exportarHistorialExcel } from "../utils/excelUtils";
 
 export default function Historial() {
   const navigate = useNavigate();
-  const [historialState, setHistorialState] = useState(getHistorial());
-  const [selected, setSelected] = useState(null);
+  const [items, setItems] = useState([]); // {id, tipo, cantidadRegistros, fecha(Timestamp), usuario}
   const [msg, setMsg] = useState("");
 
-  const handleExport = () => {
-    exportarHistorialExcel(historialState);
-    setMsg("Historial exportado a Excel");
-    setTimeout(() => setMsg(""), 2000);
-  };
+  useEffect(() => {
+    const off = subscribeHistorial((rows) => setItems(rows || []));
+    return () => { if (typeof off === "function") off(); };
+  }, []);
 
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      importarHistorialExcel(file, (data) => {
-        const nuevo = [...historialState, ...data];
-        setHist(nuevo); // persistencia
-        setHistorialState(nuevo);
-        setMsg("Historial importado correctamente");
-        setTimeout(() => setMsg(""), 2000);
-      });
+  const parsed = useMemo(() => {
+    return (items || []).map(d => {
+      let fechaStr = "";
+      try {
+        const ts = d.fecha?.toDate ? d.fecha.toDate() : (d.fecha? new Date(d.fecha): null);
+        fechaStr = ts ? ts.toLocaleString("es-AR") : "";
+      } catch { fechaStr = ""; }
+      return { ...d, _fechaStr: fechaStr };
+    });
+  }, [items]);
+
+  const handleExport = () => {
+    const data = parsed.map(x => ({
+      fecha: x._fechaStr,
+      usuario: x.usuario || "",
+      tipo: x.tipo || "",
+      cantidad: x.cantidadRegistros || 0
+    }));
+    try {
+      exportarHistorialExcel(data);
+      setMsg("Historial exportado a Excel");
+      setTimeout(() => setMsg(""), 2000);
+    } catch {
+      setMsg("No se pudo exportar");
+      setTimeout(() => setMsg(""), 2000);
     }
   };
 
@@ -35,114 +49,34 @@ export default function Historial() {
       <nav className="menu">
         <button onClick={() => navigate("/")}>Menú principal</button>
         <button onClick={handleExport}>Exportar Excel</button>
-        <label style={{ background: "#15703e", color: "#fff", padding: "10px 16px", borderRadius: 5, cursor: "pointer" }}>
-          Importar Excel
-          <input type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handleImport} />
-        </label>
-        {isAdmin() && (
-          <button
-            style={{ background: "#bb2124" }}
-            onClick={() => {
-              if (confirm("¿Seguro que querés borrar TODO el historial? Esta acción no se puede deshacer.")) {
-                clearHistorial();
-                setHistorialState([]);
-                setMsg("Historial borrado por completo");
-                setTimeout(() => setMsg(""), 2000);
-                setSelected(null);
-              }
-            }}
-          >
-            Borrar TODO
-          </button>
-        )}
+        {isAdmin() && <span style={{marginLeft:12, color:"#6b7280"}}>(Edición/borrado deshabilitado)</span>}
       </nav>
+
       <div className="content">
-        <h2>Jornadas previas</h2>
+        <h2>Movimientos recientes</h2>
         <table className="table-excel">
           <thead>
             <tr>
               <th>Fecha</th>
               <th>Usuario</th>
-              <th>Acciones</th>
+              <th>Tipo</th>
+              <th>Registros</th>
             </tr>
           </thead>
           <tbody>
-            {historialState.map((j, i) => (
-              <tr key={i}>
-                <td>{j.fecha}</td>
-                <td>{j.usuario}</td>
-                <td>
-                  <button onClick={() => setSelected(i)}>Ver</button>
-                  {isAdmin() && (
-                    <button
-                      style={{ background: "#bb2124", marginLeft: 8 }}
-                      onClick={() => {
-                        if (confirm("¿Borrar esta jornada? No se puede deshacer.")) {
-                          const nuevo = removeJornadaByIndex(i);
-                          setHistorialState(nuevo);
-                          setMsg("Jornada eliminada");
-                          setTimeout(() => setMsg(""), 2000);
-                          if (selected === i) setSelected(null);
-                        }
-                      }}
-                    >
-                      Borrar
-                    </button>
-                  )}
-                </td>
+            {parsed.map((j) => (
+              <tr key={j.id}>
+                <td>{j._fechaStr}</td>
+                <td>{j.usuario || ""}</td>
+                <td>{j.tipo || ""}</td>
+                <td>{j.cantidadRegistros || 0}</td>
               </tr>
             ))}
+            {!parsed.length && (<tr><td colSpan={4} style={{textAlign:"center", color:"#6b7280"}}>Sin datos</td></tr>)}
           </tbody>
         </table>
-        {selected !== null && (
-          <DetalleJornada jornada={historialState[selected]} onClose={() => setSelected(null)} />
-        )}
         {msg && <div style={{ color: "green", marginTop: 12 }}>{msg}</div>}
       </div>
     </div>
-  );
-}
-
-function DetalleJornada({ jornada, onClose }) {
-  return (
-    <div style={{
-      background: "#fff",
-      border: "2px solid #15703e",
-      borderRadius: 8,
-      padding: 24,
-      maxWidth: 650,
-      margin: "24px auto",
-      boxShadow: "0 4px 24px #0002"
-    }}>
-      <h3>Detalle de jornada: {jornada.fecha} - {jornada.usuario}</h3>
-      <h4>Producción</h4>
-      <TablaDetalle columns={["Corte", "Kg", "Tara", "Unidades", "Kg Neto"]} data={jornada.produccion} />
-      <h4>Ingresos</h4>
-      <TablaDetalle columns={["Producto", "Cantidad", "Kg"]} data={jornada.ingresos} />
-      <h4>Egresos</h4>
-      <TablaDetalle columns={["Producto", "Cantidad", "Kg"]} data={jornada.egresos} />
-      <button onClick={onClose} style={{ marginTop: 12 }}>Cerrar</button>
-    </div>
-  );
-}
-
-function TablaDetalle({ columns, data }) {
-  return (
-    <table className="table-excel" style={{ marginBottom: 16 }}>
-      <thead>
-        <tr>
-          {columns.map(c => <th key={c}>{c}</th>)}
-        </tr>
-      </thead>
-      <tbody>
-        {data && data.length
-          ? data.map((fila, i) => (
-              <tr key={i}>
-                {columns.map(c => <td key={c}>{fila[c.toLowerCase()] || ""}</td>)}
-              </tr>
-            ))
-          : <tr><td colSpan={columns.length}>Sin datos</td></tr>}
-      </tbody>
-    </table>
   );
 }

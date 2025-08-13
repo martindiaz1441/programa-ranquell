@@ -1,63 +1,86 @@
 // src/services/authService.js
 
-// Usuarios locales opcionales (para login simple por nombre/clave)
-const usuarios = [
-  { nombre: "Martin", password: "1234", rol: "admin" },
-  { nombre: "Orlando", password: "1234", rol: "user" },
-  { nombre: "Gastón", password: "1234", rol: "user" },
-  { nombre: "Matías", password: "1234", rol: "user" },
-  { nombre: "Miguel", password: "1234", rol: "user" },
+const LS_USER = "ranquel_current_user";
+const PRICE_VIEWERS_KEY = "ranquelPriceViewers";
+
+const PREDEFINED = [
+  { nombre: "Martin",  email: "martincbsn@gmail.com", role: "admin" },
+  { nombre: "Orlando", email: "orlando@ranquel.local", role: "user" },
+  { nombre: "Gastón",  email: "gaston@ranquel.local",  role: "user" },
+  { nombre: "Matías",  email: "matias@ranquel.local",  role: "user" },
+  { nombre: "Miguel",  email: "miguel@ranquel.local",  role: "user" },
 ];
 
-// Clave donde persistimos sesión
-const LS_KEY = "ranquelUser";
-
-// --- Login simple local (opcional) ---
-export function login(nombre, password) {
-  const user = usuarios.find(
-    (u) =>
-      u.nombre.toLowerCase() === (nombre || "").trim().toLowerCase() &&
-      u.password === password
-  );
-  if (user) {
-    localStorage.setItem(LS_KEY, JSON.stringify(user));
-    return true;
-  }
-  return false;
-}
-
-export function logout() {
-  localStorage.removeItem(LS_KEY);
-}
-
 export function getCurrentUser() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return null;
-    const u = JSON.parse(raw);
-
-    // Normalizamos por si viene de un proveedor externo con email:
-    // si el email coincide con el tuyo, lo tratamos como admin.
-    if (u?.email && u.email.toLowerCase() === "martincbsn@gmail.com") {
-      return { ...u, rol: "admin" };
-    }
-    return u;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem(LS_USER)) || null; }
+  catch { return null; }
 }
 
-// Admin si:
-// - tiene rol 'admin' (login local) O
-// - tiene email exacto 'martincbsn@gmail.com' (login externo)
 export function isAdmin() {
   const u = getCurrentUser();
   if (!u) return false;
-  if (u.rol === "admin") return true;
-  if (u.email && u.email.toLowerCase() === "martincbsn@gmail.com") return true;
-  return false;
+  return (
+    u.role === "admin" ||
+    u.nombre === "Martin" ||
+    (u.email || "").toLowerCase() === "martincbsn@gmail.com"
+  );
 }
 
-export function getAllUsuarios() {
-  return usuarios.map((u) => ({ nombre: u.nombre, rol: u.rol }));
+export function loginEmailPassword(email, password, { remember = true } = {}) {
+  return new Promise((resolve, reject) => {
+    const e = String(email || "").trim().toLowerCase();
+    const p = String(password || "");
+    if (!e || !p) return reject({ code: "auth/invalid-credential" });
+
+    const user =
+      PREDEFINED.find(u => (u.email || "").toLowerCase() === e) ||
+      PREDEFINED.find(u => u.nombre.toLowerCase() === e); // permite "Martin" en dev
+
+    if (!user) return reject({ code: "auth/invalid-credential" });
+
+    const session = { nombre: user.nombre, email: user.email, role: user.role };
+    localStorage.setItem(LS_USER, JSON.stringify(session));
+    resolve(session);
+  });
 }
+
+export function logout() {
+  localStorage.removeItem(LS_USER);
+  return true;
+}
+
+// -------- Permisos de precios --------
+export function getPriceViewers() {
+  try { return JSON.parse(localStorage.getItem(PRICE_VIEWERS_KEY) || "[]"); }
+  catch { return []; }
+}
+
+export function canSeePrices() {
+  const u = getCurrentUser();
+  if (!u) return false;
+  if (isAdmin()) return true;
+  const list = getPriceViewers().map(x => (x || "").toLowerCase());
+  const id = (u.email || u.nombre || "").toLowerCase();
+  return list.includes(id);
+}
+
+export function grantPriceAccess(identifier) {
+  const id = (identifier || "").trim();
+  if (!id) return getPriceViewers();
+  const list = getPriceViewers();
+  if (!list.map(x => x.toLowerCase()).includes(id.toLowerCase())) {
+    list.push(id);
+    localStorage.setItem(PRICE_VIEWERS_KEY, JSON.stringify(list));
+  }
+  return list;
+}
+
+export function revokePriceAccess(identifier) {
+  const id = (identifier || "").trim().toLowerCase();
+  const list = getPriceViewers().filter(x => x.toLowerCase() !== id);
+  localStorage.setItem(PRICE_VIEWERS_KEY, JSON.stringify(list));
+  return list;
+}
+
+// ---- Alias compatible ----
+export { loginEmailPassword as login };
