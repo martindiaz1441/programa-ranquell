@@ -84,3 +84,79 @@ input:focus, select:focus { border-color: #15703e; box-shadow: 0 0 0 3px #15703e
 button { touch-action: manipulation; }
 input[type="number"] { -moz-appearance: textfield; }
 input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* ===== FIX GLOBAL: Menú siempre legible (texto blanco sobre verde) ===== */
+:root {
+  --brand-600: #15703e;
+  --brand-700: #115c33;
+  --btn-fg: #ffffff;
+}
+
+nav, .menu, .main-menu, .menu-principal, header + nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* botones y links en todos los menús comunes */
+nav button, nav a, nav .btn,
+.menu button, .menu a, .menu .btn,
+.main-menu button, .main-menu a, .main-menu .btn,
+.menu-principal button, .menu-principal a, .menu-principal .btn,
+header + nav button, header + nav a, header + nav .btn {
+  background-color: var(--brand-600) !important;
+  color: var(--btn-fg) !important;
+  -webkit-text-fill-color: var(--btn-fg) !important; /* Modo oscuro iOS/Android */
+  border: 1px solid var(--brand-700) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+}
+
+/* feedback */
+nav button:hover, .menu button:hover,
+.main-menu button:hover, .menu-principal button:hover,
+nav a:hover, .menu a:hover, .main-menu a:hover, .menu-principal a:hover {
+  filter: brightness(0.97);
+}
+nav button:active, .menu button:active,
+.main-menu button:active, .menu-principal button:active,
+nav a:active, .menu a:active, .main-menu a:active, .menu-principal a:active {
+  transform: translateY(1px);
+}
+nav button:focus-visible, .menu button:focus-visible,
+.main-menu button:focus-visible, .menu-principal button:focus-visible,
+nav a:focus-visible, .menu a:focus-visible, .main-menu a:focus-visible, .menu-principal a:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(14,165,233,.25);
+}
+
+/* labels usados como botón (Importar Excel) */
+nav label, .menu label, .main-menu label, .menu-principal label {
+  background-color: var(--brand-600) !important;
+  color: var(--btn-fg) !important;
+  -webkit-text-fill-color: var(--btn-fg) !important;
+  border: 1px solid var(--brand-700) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  font-weight: 600 !important;
+  display: inline-block !important;
+}
+
+/* Mobile */
+@media (max-width: 520px) {
+  nav button, nav a, nav .btn,
+  .menu button, .menu a, .menu .btn,
+  .main-menu button, .main-menu a, .main-menu .btn,
+  .menu-principal button, .menu-principal a, .menu-principal .btn,
+  header + nav button, header + nav a, header + nav .btn {
+    flex: 1 1 auto;
+    min-width: 140px;
+    text-align: center;
+  }
+}
