@@ -7,7 +7,7 @@ export default function AutoCompleteInput({
   onChange,
   placeholder,
   suggestions, // opcional: lista de strings
-  inputRef      // opcional: ref externo para focus
+  inputRef     // opcional: ref externo para focus
 }) {
   const [filtro, setFiltro] = useState("");
   const [open, setOpen] = useState(false);
@@ -23,9 +23,7 @@ export default function AutoCompleteInput({
 
   const opciones = (fuente || [])
     .filter((p) =>
-      String(p || "")
-        .toLowerCase()
-        .includes(String(filtro || "").toLowerCase())
+      String(p || "").toLowerCase().includes(String(filtro || "").toLowerCase())
     )
     .slice(0, 50);
 

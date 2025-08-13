@@ -225,12 +225,8 @@ export default function Egresos() {
         <div className="card">
           <h3 className="card-title">Formato de Excel aceptado</h3>
           <ul className="bullets">
-            <li>
-              <b>Dos columnas</b>: PRODUCTOS | KG o UNIDAD (número).
-            </li>
-            <li>
-              <b>Lista</b> con columnas: Producto, Kg, Cantidad (o “Unidad”).
-            </li>
+            <li><b>Dos columnas</b>: PRODUCTOS | KG o UNIDAD (número).</li>
+            <li><b>Lista</b> con columnas: Producto, Kg, Cantidad (o “Unidad”).</li>
           </ul>
           <p>El sistema deduce <b>kg/unidad</b> por la columna que completes.</p>
         </div>
