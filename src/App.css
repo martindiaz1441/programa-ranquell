@@ -169,3 +169,120 @@ input[type="text"], input[type="number"], select {
   }
 }
 /* ======= /FIX ======= */
+/* ===== FIX: Botones del menú principal quedan blancos hasta hover ===== */
+
+/* Variables de marca (ya si las tenés, no pasa nada) */
+:root {
+  --brand-600: #15703e;
+  --brand-700: #115c33;
+  --text-on-brand: #ffffff;
+}
+
+/* 1) Fuerza colores en TODOS los botones/enlaces del menú (cubre Home) */
+#root nav.menu button,
+#root nav.menu a,
+#root .menu button,
+#root .menu a,
+#root .main-menu button,
+#root .main-menu a,
+#root .menu-principal button,
+#root .menu-principal a {
+  background-color: var(--brand-600) !important;
+  color: var(--text-on-brand) !important;
+  border: 1px solid var(--brand-700) !important;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* 2) Asegura que los links mantengan el color en todos los estados */
+#root nav.menu a:link,
+#root nav.menu a:visited,
+#root nav.menu a:hover,
+#root nav.menu a:active,
+#root nav.menu a:focus,
+#root .menu a:link,
+#root .menu a:visited,
+#root .menu a:hover,
+#root .menu a:active,
+#root .menu a:focus,
+#root .main-menu a:link,
+#root .main-menu a:visited,
+#root .main-menu a:hover,
+#root .main-menu a:active,
+#root .main-menu a:focus,
+#root .menu-principal a:link,
+#root .menu-principal a:visited,
+#root .menu-principal a:hover,
+#root .menu-principal a:active,
+#root .menu-principal a:focus {
+  color: var(--text-on-brand) !important;
+  text-decoration: none !important;
+}
+
+/* 3) Estados de interacción (feedback visual) */
+#root nav.menu button:hover,
+#root .menu button:hover,
+#root .main-menu button:hover,
+#root .menu-principal button:hover,
+#root nav.menu a:hover,
+#root .menu a:hover,
+#root .main-menu a:hover,
+#root .menu-principal a:hover {
+  filter: brightness(0.97);
+}
+
+#root nav.menu button:active,
+#root .menu button:active,
+#root .main-menu button:active,
+#root .menu-principal button:active,
+#root nav.menu a:active,
+#root .menu a:active,
+#root .main-menu a:active,
+#root .menu-principal a:active {
+  transform: translateY(1px);
+}
+
+#root nav.menu button:focus-visible,
+#root .menu button:focus-visible,
+#root .main-menu button:focus-visible,
+#root .menu-principal button:focus-visible,
+#root nav.menu a:focus-visible,
+#root .menu a:focus-visible,
+#root .main-menu a:focus-visible,
+#root .menu-principal a:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(14,165,233,.25);
+}
+
+/* 4) En móviles, que no se “aprieten” y ocupen ancho cómodo */
+@media (max-width: 480px){
+  #root nav.menu,
+  #root .menu,
+  #root .main-menu,
+  #root .menu-principal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  #root nav.menu button,
+  #root .menu button,
+  #root .main-menu button,
+  #root .menu-principal button,
+  #root nav.menu a,
+  #root .menu a,
+  #root .main-menu a,
+  #root .menu-principal a {
+    flex: 1 1 auto;
+    min-width: 130px;
+    text-align: center;
+  }
+}
+/* ===== /FIX ===== */
