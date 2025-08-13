@@ -16,22 +16,24 @@ export default function Historial() {
   }, []);
 
   const parsed = useMemo(() => {
-    return (items || []).map(d => {
+    return (items || []).map((d) => {
       let fechaStr = "";
       try {
-        const ts = d.fecha?.toDate ? d.fecha.toDate() : (d.fecha? new Date(d.fecha): null);
+        const ts = d.fecha?.toDate ? d.fecha.toDate() : d.fecha ? new Date(d.fecha) : null;
         fechaStr = ts ? ts.toLocaleString("es-AR") : "";
-      } catch { fechaStr = ""; }
+      } catch {
+        fechaStr = "";
+      }
       return { ...d, _fechaStr: fechaStr };
     });
   }, [items]);
 
   const handleExport = () => {
-    const data = parsed.map(x => ({
+    const data = parsed.map((x) => ({
       fecha: x._fechaStr,
       usuario: x.usuario || "",
       tipo: x.tipo || "",
-      cantidad: x.cantidadRegistros || 0
+      cantidad: x.cantidadRegistros || 0,
     }));
     try {
       exportarHistorialExcel(data);
@@ -49,7 +51,7 @@ export default function Historial() {
       <nav className="menu">
         <button onClick={() => navigate("/")}>Menú principal</button>
         <button onClick={handleExport}>Exportar Excel</button>
-        {isAdmin() && <span style={{marginLeft:12, color:"#6b7280"}}>(Edición/borrado deshabilitado)</span>}
+        {isAdmin() && <span style={{ marginLeft: 12, color: "#6b7280" }}>(Edición/borrado deshabilitado)</span>}
       </nav>
 
       <div className="content">
@@ -72,7 +74,13 @@ export default function Historial() {
                 <td>{j.cantidadRegistros || 0}</td>
               </tr>
             ))}
-            {!parsed.length && (<tr><td colSpan={4} style={{textAlign:"center", color:"#6b7280"}}>Sin datos</td></tr>)}
+            {!parsed.length && (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center", color: "#6b7280" }}>
+                  Sin datos
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         {msg && <div style={{ color: "green", marginTop: 12 }}>{msg}</div>}
