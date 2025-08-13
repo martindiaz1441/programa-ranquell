@@ -8,13 +8,15 @@ export default defineConfig({
   plugins: [
     react(),
     legacy({
-      // Soporte amplio para móviles
-      targets: ["defaults", "Android >= 6", "iOS >= 12"],
+      // Bajamos targets para móviles más viejos
+      targets: ["defaults", "Android >= 5", "iOS >= 10"],
       modernPolyfills: true,
       additionalLegacyPolyfills: ["regenerator-runtime/runtime"],
+      renderLegacyChunks: true,
     }),
-    // Mantengo tu PWA (autoUpdate)
+    // Deploy "de limpieza": desinstala el SW para purgar caches viejas
     VitePWA({
+      selfDestroying: true,
       registerType: "autoUpdate",
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,svg,webp,ico}"],
@@ -23,17 +25,12 @@ export default defineConfig({
         name: "RANQUEL",
         short_name: "RANQUEL",
         theme_color: "#15703e",
-        icons: [
-          // Usá tus íconos si tenés; este queda de placeholder
-          { src: "/vite.svg", sizes: "192x192", type: "image/svg+xml" },
-        ],
+        icons: [{ src: "/vite.svg", sizes: "192x192", type: "image/svg+xml" }],
       },
     }),
   ],
   build: {
-    // Genera JS compatible con navegadores más viejos
     target: "es2018",
-    // (opcional) si querés reducir warnings por tamaño
     chunkSizeWarningLimit: 1600,
   },
 });
