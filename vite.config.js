@@ -8,19 +8,15 @@ export default defineConfig({
   plugins: [
     react(),
     legacy({
-      // Bajamos targets para móviles más viejos
       targets: ["defaults", "Android >= 5", "iOS >= 10"],
       modernPolyfills: true,
       additionalLegacyPolyfills: ["regenerator-runtime/runtime"],
       renderLegacyChunks: true,
     }),
-    // Deploy "de limpieza": desinstala el SW para purgar caches viejas
     VitePWA({
-      selfDestroying: true,
+      selfDestroying: true, // desinstala el SW viejo y limpia caché en el celu
       registerType: "autoUpdate",
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,png,svg,webp,ico}"],
-      },
+      workbox: { globPatterns: ["**/*.{js,css,html,png,svg,webp,ico}"] },
       manifest: {
         name: "RANQUEL",
         short_name: "RANQUEL",
@@ -30,7 +26,7 @@ export default defineConfig({
     }),
   ],
   build: {
-    target: "es2018",
+    // sin target, para que no salga el warning de override del plugin-legacy
     chunkSizeWarningLimit: 1600,
   },
 });
